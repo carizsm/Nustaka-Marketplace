@@ -286,6 +286,53 @@ class ApiService {
       throw Exception('$message (Status: ${response.statusCode})');
     }
   }
-// Pastikan menggunakan header Authorization untuk endpoint yang memerlukan autentikasi
+
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String email,
+    required String password,
+    String? phoneNumber,
+    String? address,
+    String role = 'buyer', // Default role adalah 'buyer'
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/users/register'),
+        headers: await _getHeaders(),
+        body: jsonEncode(<String, String?>{
+          'username': username,
+          'email': email,
+          'password': password,
+          'phone_number': phoneNumber,
+          'address': address,
+          'role': role,
+        }),
+      );
+
+      final Map<String, dynamic> responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 201) { // Kode status 201 untuk 'Created'
+        if (responseBody.containsKey('token')) {
+          // Simpan token setelah registrasi berhasil
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('authToken', responseBody['token'] as String);
+          return responseBody; // Mengembalikan {'token': ..., 'user': ...}
+        } else {
+          throw Exception('Registration response format is invalid: Missing token.');
+        }
+      } else {
+        String message = 'Registration failed';
+        if (responseBody.containsKey('message')) {
+          message = responseBody['message'] as String;
+        }
+        throw Exception('$message (Status: ${response.statusCode})');
+      }
+    } catch (e) {
+      print('ApiService Register Error: $e');
+      throw Exception('An error occurred during registration: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
 }
+
+
 

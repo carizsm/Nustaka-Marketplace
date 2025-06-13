@@ -2,17 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-// import '../models/user.dart'; // Impor jika Anda membuat model User
+import '../models/user.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
   String? _token;
-  // User? _currentUser; // Jika Anda ingin menyimpan data user
+  User? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
 
   String? get token => _token;
-  // User? get currentUser => _currentUser;
+  User? get currentUser => _currentUser;
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -29,9 +29,6 @@ class AuthProvider with ChangeNotifier {
     final storedToken = prefs.getString('authToken');
     if (storedToken != null && storedToken.isNotEmpty) {
       _token = storedToken;
-      // Anda bisa menambahkan logika untuk memvalidasi token di sini jika perlu
-      // atau mengambil data user berdasarkan token yang tersimpan
-      // Misalnya: await fetchCurrentUser();
       notifyListeners();
     }
   }
@@ -71,5 +68,41 @@ class AuthProvider with ChangeNotifier {
   void clearErrorMessage() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  Future<bool> register({
+    required String username,
+    required String email,
+    required String password,
+    String? phoneNumber,
+    String? address,
+    String role = 'buyer',
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final responseData = await _apiService.register(
+        username: username,
+        email: email,
+        password: password,
+        phoneNumber: phoneNumber,
+        address: address,
+        role: role,
+      );
+      _token = responseData['token'] as String?;
+      if (responseData.containsKey('user')) {
+        _currentUser = User.fromJson(responseData['user'] as Map<String, dynamic>);
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true; // Registrasi berhasil
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false; // Registrasi gagal
+    }
   }
 }
