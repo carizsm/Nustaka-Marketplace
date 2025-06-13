@@ -80,9 +80,7 @@ class _SellerOrderPageState extends State<SellerOrderPage> {
                     order.customerName,
                     order.deadline,
                     order.status,
-                    order.productName,
-                    order.quantity,
-                    order.details,
+                    order.items,
                   ),
                 )),
         ],
@@ -100,81 +98,72 @@ class _SellerOrderPageState extends State<SellerOrderPage> {
   }
 
   Widget _buildOrderItem(
-    String invoice,
-    String customer,
-    String deadline,
-    String status,
-    String product,
-    String quantity,
-    Map<String, dynamic> details,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(invoice, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+  String invoice,
+  String customer,
+  String deadline,
+  String status,
+  List<OrderItem> items,
+) {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(invoice, style: const TextStyle(fontWeight: FontWeight.bold))),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(customer),
-            const SizedBox(height: 12),
-            Text("Batas Respons", style: TextStyle(color: Colors.grey[600])),
-            Text(deadline, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 12),
-            Text(product, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text("Jumlah Pembelian : $quantity"),
-            const SizedBox(height: 12),
-
-            ...details.entries.map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.label_outline, size: 20),
-                  const SizedBox(width: 8),
-                  Text("${entry.key}: ${entry.value}"),
-                ],
+                child: Text(status,
+                    style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold)),
               ),
-            )),
-            const SizedBox(height: 16),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD9A25F),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(customer),
+          const SizedBox(height: 8),
+          Text("Batas Respons", style: TextStyle(color: Colors.grey[600])),
+          Text(deadline, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          const Divider(),
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text("Jumlah: ${item.quantity}"),
+                    Text("Harga per item: Rp${item.pricePerItem}"),
+                    if (item.images.isNotEmpty)
+                      Image.network(item.images.first, width: 100, height: 100, fit: BoxFit.cover),
+                  ],
                 ),
-                child: const Text("Konfirmasi Resi"),
+              )),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD9A25F),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
+              child: const Text("Konfirmasi Resi"),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Color _getStatusColor(String status) {
     switch (status) {
