@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/product.dart'; // Gunakan model Product dari folder models
+import '../../services/api_service.dart';
 
 class ProductDetailPage extends StatelessWidget {
   final Product product;
@@ -32,8 +33,9 @@ class ProductDetailPage extends StatelessWidget {
         child: Column(
           children: [
             // Gambar Produk
-            Image.network(
-              product.images.isNotEmpty ? product.images.first : '',
+            (product.images.isNotEmpty && product.images.first.startsWith('http'))
+                ? Image.network(
+              product.images.first,
               width: double.infinity,
               height: 250,
               fit: BoxFit.cover,
@@ -42,6 +44,11 @@ class ProductDetailPage extends StatelessWidget {
                 color: Colors.grey[300],
                 child: const Icon(Icons.broken_image, size: 50),
               ),
+            )
+                : Container(
+              height: 250,
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image, size: 50),
             ),
 
             // Informasi Produk
@@ -109,7 +116,18 @@ class ProductDetailPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () async {
+                            try {
+                              await ApiService().addToCart(product.id, quantity: 2);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Produk ditambahkan ke keranjang')),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Gagal menambah ke keranjang: $e')),
+                              );
+                            }
+                          },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.grey),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

@@ -100,11 +100,10 @@ class ApiService {
     }
   }
 
-  ---
 
-  ### Metode untuk Keranjang Belanja (Cart)
 
-  ---
+
+
 
   // Add product to cart
   Future<void> addToCart(String productId, {int quantity = 1}) async {
@@ -170,11 +169,6 @@ class ApiService {
     }
   }
 
-  ---
-
-  ### Metode untuk Seller
-
-  ---
 
   // getMyProducts (untuk seller)
   Future<List<FullyEnrichedProduct>> getMyProducts() async {

@@ -7,6 +7,7 @@ import 'wishlist_page.dart';
 import 'transaction_page.dart';
 import 'user_profille.dart';
 import 'product_detail_page.dart';
+import 'cart_page.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -95,7 +96,12 @@ class _HomepageState extends State<Homepage> {
           ),
           IconButton(
             icon: const Icon(Icons.shopping_cart, color: Colors.white),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CartPage()),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
@@ -227,8 +233,9 @@ class _HomepageState extends State<Homepage> {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-            child: Image.network(
-              product.images.isNotEmpty ? product.images.first : '',
+            child: (product.images.isNotEmpty && product.images.first.startsWith('http'))
+                ? Image.network(
+              product.images.first,
               height: 130,
               width: double.infinity,
               fit: BoxFit.cover,
@@ -237,6 +244,11 @@ class _HomepageState extends State<Homepage> {
                 color: Colors.grey.shade300,
                 child: const Icon(Icons.image_not_supported),
               ),
+            )
+                : Container(
+              height: 130,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.image_not_supported),
             ),
           ),
           Padding(
@@ -276,8 +288,9 @@ class _HomepageState extends State<Homepage> {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-            child: Image.network(
-              product.images.isNotEmpty ? product.images.first : '',
+            child: (product.images.isNotEmpty && product.images.first.startsWith('http'))
+                ? Image.network(
+              product.images.first,
               height: 130,
               width: double.infinity,
               fit: BoxFit.cover,
@@ -286,6 +299,11 @@ class _HomepageState extends State<Homepage> {
                 color: Colors.grey.shade300,
                 child: const Icon(Icons.image_not_supported),
               ),
+            )
+                : Container(
+              height: 130,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.image_not_supported),
             ),
           ),
           Padding(
