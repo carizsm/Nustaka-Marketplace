@@ -100,78 +100,176 @@ class ApiService {
     }
   }
 
-// ... Tambahkan method lain untuk endpoint:
-// registerUser, getCurrentUser, updateUser, deleteUser
-// addToCart, getCart, updateCartItem, deleteCartItem
-// createOrder, getOrders, getOrderById
-// createReview, getReviewsByProduct
-// getMyProducts (untuk seller)
-Future<List<FullyEnrichedProduct>> getMyProducts() async {
-  final uri = Uri.parse('$_baseUrl/products/my');
-  final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
+  ---
 
-  if (response.statusCode == 200) {
-    final decodedBody = utf8.decode(response.bodyBytes);
-    final data = jsonDecode(decodedBody) as Map<String, dynamic>;
-    final List<dynamic> productsJson = data['data'];
-    return productsJson.map((e) => FullyEnrichedProduct.fromJson(e)).toList();
-  } else if (response.statusCode == 404) {
-    // 404 berarti data kosong → kembalikan list kosong, bukan lempar error
-    return [];
-  } else {
-    throw Exception('Gagal memuat produk saya. Status: ${response.statusCode}');
+  ### Metode untuk Keranjang Belanja (Cart)
+
+  ---
+
+  // Add product to cart
+  Future<void> addToCart(String productId, {int quantity = 1}) async {
+    final url = Uri.parse('$_baseUrl/cart');
+    final headers = await _getHeaders(includeAuth: true);
+    final body = jsonEncode({
+      'product_id': productId,
+      'quantity': quantity,
+    });
+
+    final response = await http.post(url, headers: headers, body: body);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to add to cart: ${response.body}');
+    }
   }
-}
 
+  // Get all cart items
+  Future<List<Map<String, dynamic>>> getCart() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/cart'),
+      headers: await _getHeaders(includeAuth: true),
+    );
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final dynamic data = jsonDecode(decodedBody);
 
+      List<dynamic> cartListJson;
+      if (data is List) {
+        cartListJson = data;
+      } else if (data is Map<String, dynamic> && data['data'] is List) {
+        cartListJson = data['data'];
+      } else {
+        throw Exception('Unexpected cart response format');
+      }
 
-// getMyOrders (untuk seller)
-Future<List<OrderData>> getMyOrders() async {
-  final uri = Uri.parse('$_baseUrl/orders');
-  final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
-
-  if (response.statusCode == 200) {
-    final decoded = utf8.decode(response.bodyBytes);
-    final data = jsonDecode(decoded);
-    final List<dynamic> list = data['data'];
-    return list.map((e) => OrderData.fromJson(e)).toList();
-  } else if (response.statusCode == 404) {
-    return [];
-  } else {
-    throw Exception('Gagal memuat daftar order');
+      return cartListJson.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load cart');
+    }
   }
-}
 
-// getmyTransactions (untuk seller)
-Future<List<TransactionData>> getMyTransactions() async {
-  final uri = Uri.parse('$_baseUrl/seller/transactions');
-  final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
-
-  if (response.statusCode == 200) {
-    final decoded = utf8.decode(response.bodyBytes);
-    final data = jsonDecode(decoded);
-    final List<dynamic> list = data['data'];
-    return list.map((e) => TransactionData.fromJson(e)).toList();
-  } else {
-    throw Exception('Gagal memuat daftar transaksi');
+  // Update cart item quantity
+  Future<void> updateCartItem(String cartItemId, int quantity) async {
+    final response = await http.put(
+      Uri.parse('$_baseUrl/cart/$cartItemId'),
+      headers: await _getHeaders(includeAuth: true),
+      body: jsonEncode({'quantity': quantity}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update cart item');
+    }
   }
-}
 
-// createPrduct (untuk seller)
-Future<void> createProduct({
-  required String name,
-  required String detail,
-  required String description,
-  required int stock,
-  required String unit,
-  required int price,
-  required bool visible,
-}) async {
-  final uri = Uri.parse('$_baseUrl/products');
-  final response = await http.post(
-    uri,
-    headers: await _getHeaders(includeAuth: true),
-    body: jsonEncode({
+  // Delete cart item
+  Future<void> deleteCartItem(String cartItemId) async {
+    final response = await http.delete(
+      Uri.parse('$_baseUrl/cart/$cartItemId'),
+      headers: await _getHeaders(includeAuth: true),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete cart item');
+    }
+  }
+
+  ---
+
+  ### Metode untuk Seller
+
+  ---
+
+  // getMyProducts (untuk seller)
+  Future<List<FullyEnrichedProduct>> getMyProducts() async {
+    final uri = Uri.parse('$_baseUrl/products/my');
+    final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decodedBody) as Map<String, dynamic>;
+      final List<dynamic> productsJson = data['data'];
+      return productsJson.map((e) => FullyEnrichedProduct.fromJson(e)).toList();
+    } else if (response.statusCode == 404) {
+      // 404 berarti data kosong → kembalikan list kosong, bukan lempar error
+      return [];
+    } else {
+      throw Exception('Gagal memuat produk saya. Status: ${response.statusCode}');
+    }
+  }
+
+  // getMyOrders (untuk seller)
+  Future<List<OrderData>> getMyOrders() async {
+    final uri = Uri.parse('$_baseUrl/orders'); // ✅ endpoint benar
+    final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
+
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      final List<dynamic> list = data['data'];
+      return list.map((e) => OrderData.fromJson(e)).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Gagal memuat daftar order');
+    }
+  }
+
+  // getmyTransactions (untuk seller)
+  Future<List<TransactionData>> getMyTransactions() async {
+    final uri = Uri.parse('$_baseUrl/seller/transactions');
+    final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
+
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      final List<dynamic> list = data['data'];
+      return list.map((e) => TransactionData.fromJson(e)).toList();
+    } else {
+      throw Exception('Gagal memuat daftar transaksi');
+    }
+  }
+
+  // createProduct (untuk seller)
+  Future<void> createProduct({
+    required String name,
+    required String detail,
+    required String description,
+    required int stock,
+    required String unit,
+    required int price,
+    required bool visible,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/seller/products');
+    final response = await http.post(
+      uri,
+      headers: await _getHeaders(includeAuth: true),
+      body: jsonEncode({
+        'name': name,
+        'detail': detail,
+        'description': description,
+        'stock': stock,
+        'unit': unit,
+        'price': price,
+        'visible': visible,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Gagal menambahkan produk. Status: ${response.statusCode}');
+    }
+  }
+
+  // updateProduct (untuk seller)
+  Future<void> updateProduct({
+    required String productId,
+    required String name,
+    required String detail,
+    required String description,
+    required int stock,
+    required String unit,
+    required int price,
+    required bool visible,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/products/$productId');
+
+    final body = jsonEncode({
       'name': name,
       'detail': detail,
       'description': description,
@@ -179,56 +277,26 @@ Future<void> createProduct({
       'unit': unit,
       'price': price,
       'visible': visible,
-    }),
-  );
+    });
 
-  if (response.statusCode != 201) {
-    throw Exception('Gagal menambahkan produk. Status: ${response.statusCode}');
+    final response = await http.put(
+      uri,
+      headers: await _getHeaders(includeAuth: true),
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      // Update sukses
+      return;
+    } else {
+      String message = 'Failed to update product';
+      try {
+        final decoded = jsonDecode(response.body);
+        message = decoded['message'] ?? message;
+      } catch (_) {}
+      throw Exception('$message (Status: ${response.statusCode})');
+    }
   }
-}
-
-// updateProduct (untuk seller)
-Future<void> updateProduct({
-  required String productId,
-  required String name,
-  required String detail,
-  required String description,
-  required int stock,
-  required String unit,
-  required int price,
-  required bool visible,
-}) async {
-  final uri = Uri.parse('$_baseUrl/products/$productId');
-
-  final body = jsonEncode({
-    'name': name,
-    'detail': detail,
-    'description': description,
-    'stock': stock,
-    'unit': unit,
-    'price': price,
-    'visible': visible,
-  });
-
-  final response = await http.put(
-    uri,
-    headers: await _getHeaders(includeAuth: true),
-    body: body,
-  );
-
-  if (response.statusCode == 200) {
-    // Update sukses
-    return;
-  } else {
-    String message = 'Failed to update product';
-    try {
-      final decoded = jsonDecode(response.body);
-      message = decoded['message'] ?? message;
-    } catch (_) {}
-    throw Exception('$message (Status: ${response.statusCode})');
-  }
-}
-
 
 // Pastikan menggunakan header Authorization untuk endpoint yang memerlukan autentikasi
 }
