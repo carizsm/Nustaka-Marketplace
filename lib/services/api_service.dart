@@ -100,27 +100,6 @@ class ApiService {
     }
   }
 
-  Future<FullyEnrichedProduct> getafryan(String productId) async {
-    final response = await http.get(
-        Uri.parse('$_baseUrl/products/$productId'),
-        headers: await _getHeaders()
-    );
-    if (response.statusCode == 200) {
-      final decodedBody = utf8.decode(response.bodyBytes);
-      return FullyEnrichedProduct.fromJson(jsonDecode(decodedBody) as Map<String, dynamic>);
-    } else if (response.statusCode == 404) {
-      throw Exception('Product not found (Status: 404)');
-    }
-    else {
-      throw Exception('Failed to load product details (Status: ${response.statusCode})');
-    }
-  }
-
-
-
-
-
-
   // Add product to cart
   Future<void> addToCart(String productId, {int quantity = 1}) async {
     final url = Uri.parse('$_baseUrl/cart');
@@ -307,48 +286,6 @@ class ApiService {
       throw Exception('$message (Status: ${response.statusCode})');
     }
   }
-
-  Future<void> updateAfryan({
-    required String productId,
-    required String name,
-    required String detail,
-    required String description,
-    required int stock,
-    required String unit,
-    required int price,
-    required bool visible,
-  }) async {
-    final uri = Uri.parse('$_baseUrl/products/$productId');
-
-    final body = jsonEncode({
-      'name': name,
-      'detail': detail,
-      'description': description,
-      'stock': stock,
-      'unit': unit,
-      'price': price,
-      'visible': visible,
-    });
-
-    final response = await http.put(
-      uri,
-      headers: await _getHeaders(includeAuth: true),
-      body: body,
-    );
-
-    if (response.statusCode == 200) {
-      // Update sukses
-      return;
-    } else {
-      String message = 'Failed to update product';
-      try {
-        final decoded = jsonDecode(response.body);
-        message = decoded['message'] ?? message;
-      } catch (_) {}
-      throw Exception('$message (Status: ${response.statusCode})');
-    }
-  }
-
 // Pastikan menggunakan header Authorization untuk endpoint yang memerlukan autentikasi
 }
 
