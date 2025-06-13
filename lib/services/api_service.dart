@@ -292,5 +292,46 @@ class ApiService {
     }
   }
 
+  Future<void> updateAfryan({
+    required String productId,
+    required String name,
+    required String detail,
+    required String description,
+    required int stock,
+    required String unit,
+    required int price,
+    required bool visible,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/products/$productId');
+
+    final body = jsonEncode({
+      'name': name,
+      'detail': detail,
+      'description': description,
+      'stock': stock,
+      'unit': unit,
+      'price': price,
+      'visible': visible,
+    });
+
+    final response = await http.put(
+      uri,
+      headers: await _getHeaders(includeAuth: true),
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      // Update sukses
+      return;
+    } else {
+      String message = 'Failed to update product';
+      try {
+        final decoded = jsonDecode(response.body);
+        message = decoded['message'] ?? message;
+      } catch (_) {}
+      throw Exception('$message (Status: ${response.statusCode})');
+    }
+  }
+
 // Pastikan menggunakan header Authorization untuk endpoint yang memerlukan autentikasi
 }
