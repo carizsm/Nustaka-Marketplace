@@ -100,6 +100,22 @@ class ApiService {
     }
   }
 
+  Future<FullyEnrichedProduct> getafryan(String productId) async {
+    final response = await http.get(
+        Uri.parse('$_baseUrl/products/$productId'),
+        headers: await _getHeaders()
+    );
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      return FullyEnrichedProduct.fromJson(jsonDecode(decodedBody) as Map<String, dynamic>);
+    } else if (response.statusCode == 404) {
+      throw Exception('Product not found (Status: 404)');
+    }
+    else {
+      throw Exception('Failed to load product details (Status: ${response.statusCode})');
+    }
+  }
+
 
 
 
@@ -335,3 +351,4 @@ class ApiService {
 
 // Pastikan menggunakan header Authorization untuk endpoint yang memerlukan autentikasi
 }
+
