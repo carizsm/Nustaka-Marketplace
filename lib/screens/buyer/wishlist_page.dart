@@ -1,15 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../../models/product.dart';
 import 'transaction_page.dart';
 import 'user_profille.dart';
 
-
-class WishlistPage extends StatelessWidget {
+class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
 
-  void _showBottomSheet(BuildContext context) {
+  @override
+  State<WishlistPage> createState() => _WishlistPageState();
+}
+
+class _WishlistPageState extends State<WishlistPage> {
+  List<FullyEnrichedProduct> wishlistProducts = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWishlistProducts();
+  }
+
+  Future<void> _loadWishlistProducts() async {
+    setState(() => isLoading = true);
+    final prefs = await SharedPreferences.getInstance();
+    final wishlistString = prefs.getString('wishlist_products') ?? '[]';
+    final List<dynamic> wishlistJson = jsonDecode(wishlistString);
+
+    final List<FullyEnrichedProduct> products = wishlistJson
+        .map((e) => FullyEnrichedProduct.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    setState(() {
+      wishlistProducts = products;
+      isLoading = false;
+    });
+  }
+
+  Future<void> _removeFromWishlist(String productId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final wishlistString = prefs.getString('wishlist_products') ?? '[]';
+    final List<dynamic> wishlistJson = jsonDecode(wishlistString);
+
+    wishlistJson.removeWhere((e) => (e['id'].toString() == productId.toString()));
+
+    await prefs.setString('wishlist_products', jsonEncode(wishlistJson));
+    await _loadWishlistProducts();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Dihapus dari wishlist')),
+    );
+  }
+
+  void _showBottomSheet(BuildContext context, String productId) {
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
@@ -22,8 +68,15 @@ class WishlistPage extends StatelessWidget {
               _bottomSheetItem(Icons.store, 'Lihat Toko'),
               _bottomSheetItem(Icons.share, 'Bagikan Link Barang'),
               _bottomSheetItem(Icons.bookmark, 'Simpan ke Koleksi'),
-              Divider(),
-              _bottomSheetItem(Icons.delete, 'Hapus', isDestructive: true),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Hapus', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _removeFromWishlist(productId);
+                },
+              ),
             ],
           ),
         );
@@ -109,44 +162,36 @@ class WishlistPage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchBar(),
-            const SizedBox(height: 10),
-            _buildFilterRow(),
-            const SizedBox(height: 10),
-            const Text(
-              '3 Barang',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildWishlistCard(context,
-                    title: 'Sate Madura',
-                    location: 'Madura',
-                    price: 'Rp 100.000',
-                    image: 'assets/images/sate_madura.png',
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : wishlistProducts.isEmpty
+                ? const Center(child: Text('Wishlist kosong'))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSearchBar(),
+                      const SizedBox(height: 10),
+                      _buildFilterRow(),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${wishlistProducts.length} Barang',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: ListView(
+                          children: wishlistProducts.map((product) {
+                            return _buildWishlistCard(
+                              context,
+                              product: product,
+                              onRemove: () => _removeFromWishlist(product.id),
+                              onMore: () => _showBottomSheet(context, product.id),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                  _buildWishlistCard(context,
-                    title: 'Mie Kocok Bandung',
-                    location: 'Jawa Barat',
-                    price: 'Rp 100.000',
-                    image: 'assets/images/mie_kocok.png',
-                  ),
-                  _buildWishlistCard(context,
-                    title: 'Bakso Malang',
-                    location: 'Jawa Timur',
-                    price: 'Rp 100.000',
-                    image: 'assets/images/bakso_malang.png',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF86A340),
@@ -231,11 +276,11 @@ class WishlistPage extends StatelessWidget {
     );
   }
 
-  Widget _buildWishlistCard(BuildContext context, {
-    required String title,
-    required String location,
-    required String price,
-    required String image,
+  Widget _buildWishlistCard(
+    BuildContext context, {
+    required FullyEnrichedProduct product,
+    required VoidCallback onRemove,
+    required VoidCallback onMore,
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -248,23 +293,36 @@ class WishlistPage extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                image,
-                width: 70,
-                height: 70,
-                fit: BoxFit.cover,
-              ),
+              child: (product.images.isNotEmpty && product.images.first.startsWith('http'))
+                  ? Image.network(
+                      product.images.first,
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 70,
+                        height: 70,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.image_not_supported),
+                      ),
+                    )
+                  : Container(
+                      width: 70,
+                      height: 70,
+                      color: Colors.grey.shade300,
+                      child: const Icon(Icons.image_not_supported),
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(location, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(product.location ?? '-', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   const SizedBox(height: 4),
-                  Text(price, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('Rp ${product.price.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -272,7 +330,7 @@ class WishlistPage extends StatelessWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.more_horiz),
-                  onPressed: () => _showBottomSheet(context),
+                  onPressed: onMore,
                 ),
                 const SizedBox(height: 4),
                 ElevatedButton(
@@ -286,6 +344,11 @@ class WishlistPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.favorite, color: Color(0xFF86A340)),
+                  onPressed: () => onRemove(),
+                  tooltip: 'Hapus dari wishlist',
                 ),
               ],
             ),

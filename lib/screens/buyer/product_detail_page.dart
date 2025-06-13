@@ -1,14 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../models/product.dart'; // Gunakan model Product dari folder models
 import '../../services/api_service.dart';
+import 'checkout.dart';
 
-class ProductDetailPage extends StatelessWidget {
+class ProductDetailPage extends StatefulWidget {
   final Product product;
 
   const ProductDetailPage({super.key, required this.product});
 
   @override
+  State<ProductDetailPage> createState() => _ProductDetailPageState();
+}
+
+class _ProductDetailPageState extends State<ProductDetailPage> {
+  bool isWishlisted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkWishlist();
+  }
+
+  Future<void> _checkWishlist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final wishlistString = prefs.getString('wishlist_products') ?? '[]';
+    final List<dynamic> wishlistJson = jsonDecode(wishlistString);
+    setState(() {
+      isWishlisted = wishlistJson.any((e) => e['id'].toString() == widget.product.id.toString());
+    });
+  }
+
+  Future<void> _toggleWishlist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final wishlistString = prefs.getString('wishlist_products') ?? '[]';
+    final List<dynamic> wishlistJson = jsonDecode(wishlistString);
+
+    final idx = wishlistJson.indexWhere((e) => e['id'].toString() == widget.product.id.toString());
+
+    setState(() {
+      if (idx != -1) {
+        wishlistJson.removeAt(idx);
+        isWishlisted = false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Dihapus dari wishlist')),
+        );
+      } else {
+        // Manual mapping ke Map<String, dynamic>
+        final productJson = {
+          'id': widget.product.id,
+          'name': widget.product.name,
+          'description': widget.product.description,
+          'price': widget.product.price,
+          'images': widget.product.images,
+          'location': widget.product.location,
+          'stock': widget.product.stock,
+          // Hapus regionId karena Product tidak punya field ini
+          // tambahkan field lain jika perlu
+        };
+        wishlistJson.add(productJson);
+        isWishlisted = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ditambahkan ke wishlist')),
+        );
+      }
+    });
+
+    await prefs.setString('wishlist_products', jsonEncode(wishlistJson));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final product = widget.product;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -19,6 +84,13 @@ class ProductDetailPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              isWishlisted ? Icons.favorite : Icons.favorite_border,
+              color: isWishlisted ? const Color(0xFF86A340) : Colors.white,
+            ),
+            onPressed: _toggleWishlist,
+          ),
           IconButton(
             icon: const Icon(Icons.shopping_cart, color: Colors.white),
             onPressed: () {},
@@ -57,7 +129,7 @@ class ProductDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Lokasi & rating
+                  // Lokasi & rating & wishlist icon
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -65,22 +137,34 @@ class ProductDetailPage extends StatelessWidget {
                         product.location ?? '-', // Perbaikan: fallback jika null
                         style: const TextStyle(color: Colors.grey),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.star, color: Colors.white, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              product.ratingLabel,
-                              style: const TextStyle(color: Colors.white),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.star, color: Colors.white, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  product.ratingLabel,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(
+                              isWishlisted ? Icons.favorite : Icons.favorite_border,
+                              color: isWishlisted ? const Color(0xFF86A340) : const Color(0xFF86A340),
+                            ),
+                            onPressed: _toggleWishlist,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -115,7 +199,7 @@ class ProductDetailPage extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: ElevatedButton(
                           onPressed: () async {
                             try {
                               await ApiService().addToCart(product.id, quantity: 2);
@@ -128,22 +212,13 @@ class ProductDetailPage extends StatelessWidget {
                               );
                             }
                           },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.grey),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: const Text('+ Keranjang'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {},
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF86A340),
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text('Beli Sekarang'),
+                          child: const Text('+ Keranjang'),
                         ),
                       ),
                     ],
