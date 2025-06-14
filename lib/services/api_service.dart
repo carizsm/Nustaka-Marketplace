@@ -1,11 +1,13 @@
 // services/api_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 // Impor model Anda
 import '../models/product.dart'; // Sesuaikan path
 import '../models/order.dart';
 import '../models/transaction.dart';
+import '../models/user.dart'; // Ganti ke user.dart
 // ... impor model lain
 
 class ApiService {
@@ -332,7 +334,101 @@ class ApiService {
       throw Exception('An error occurred during registration: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
+
+  // Mendapatkan daftar order untuk buyer
+  Future<List<BuyerOrder>> getBuyerOrders() async {
+    final uri = Uri.parse('$_baseUrl/orders');
+    final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
+
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      final List<dynamic> list = data['data'];
+      return list.map((e) => BuyerOrder.fromJson(e)).toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Gagal memuat daftar order');
+    }
+  }
+
+  // Mendapatkan profil user (buyer)
+  Future<User> getProfile() async {
+    final uri = Uri.parse('$_baseUrl/users/me');
+    final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      return User.fromJson(data);
+    } else {
+      throw Exception('Gagal memuat profil user');
+    }
+  }
+
+  // Logout user
+  Future<void> logout() async {
+    final uri = Uri.parse('$_baseUrl/users/logout');
+    final response = await http.post(uri, headers: await _getHeaders(includeAuth: true));
+    // Hapus token dari SharedPreferences meskipun API error
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('authToken');
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Gagal logout');
+    }
+  }
+
+  // Update profil user (buyer)
+  Future<User> updateProfile({
+    String? username,
+    String? bio,
+    String? email,
+    String? phoneNumber,
+    String? gender,
+    DateTime? birthDate,
+    String? address,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/users/me');
+    final Map<String, dynamic> body = {};
+    if (username != null) body['username'] = username;
+    if (bio != null) body['bio'] = bio;
+    if (email != null) body['email'] = email;
+    if (phoneNumber != null) body['phone_number'] = phoneNumber;
+    if (gender != null) body['gender'] = gender;
+    if (birthDate != null) body['birth_date'] = birthDate.toIso8601String();
+    if (address != null) body['address'] = address;
+
+    final response = await http.put(
+      uri,
+      headers: await _getHeaders(includeAuth: true),
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      return User.fromJson(data);
+    } else {
+      throw Exception('Gagal memperbarui profil');
+    }
+  }
+
+  // Upload avatar (foto profil)
+  Future<User> updateAvatar(File avatarFile) async {
+    final uri = Uri.parse('$_baseUrl/users/me/avatar');
+    final request = http.MultipartRequest('PUT', uri);
+    final token = await _getToken();
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.files.add(await http.MultipartFile.fromPath('avatar', avatarFile.path));
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      return User.fromJson(data);
+    } else {
+      throw Exception('Gagal mengunggah foto profil');
+    }
+  }
 }
-
-
-
