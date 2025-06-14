@@ -162,9 +162,7 @@ class _HomepageState extends State<Homepage> {
                       ),
                     );
                   },
-                  child: selectedCategory == "Jawa Barat"
-                      ? buildSimpleCard(product)
-                      : buildProductCard(product),
+                  child: buildProductCard(product), // Selalu gunakan buildProductCard
                 );
               }).toList(),
             ),
@@ -277,27 +275,49 @@ class _HomepageState extends State<Homepage> {
               child: const Icon(Icons.image_not_supported),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 5),
-                Text('Rp ${product.price.toInt()}',
-                    style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 14),
-                    const SizedBox(width: 4),
-                    Text('4.5 • ${product.stock} terjual',
-                        style: const TextStyle(fontSize: 12)),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(product.regionId ?? '-', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    maxLines: 1, // Batasi hanya 1 baris
+                    overflow: TextOverflow.ellipsis, // Tambahkan ellipsis jika kepanjangan
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Rp ${product.price.toInt()}',
+                    style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '4.5 • ${product.stock} terjual',
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    product.regionId ?? '-',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -338,7 +358,7 @@ class _HomepageState extends State<Homepage> {
               product.name,
               style: const TextStyle(fontWeight: FontWeight.bold),
               overflow: TextOverflow.ellipsis,
-              maxLines: 2,
+              maxLines: 1, // Batasi hanya 1 baris
             ),
           ),
         ],

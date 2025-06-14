@@ -202,7 +202,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         child: ElevatedButton(
                           onPressed: () async {
                             try {
-                              await ApiService().addToCart(product.id, quantity: 2);
+                              await ApiService().addToCart(product.id, quantity: 1); // Ubah quantity ke 1
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Produk ditambahkan ke keranjang')),
                               );

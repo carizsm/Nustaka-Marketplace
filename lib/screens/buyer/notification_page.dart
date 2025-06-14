@@ -101,21 +101,6 @@ class _NotificationPageState extends State<NotificationPage> {
           'Notifikasi',
           style: TextStyle(color: Colors.white),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _refresh,
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: const Icon(Icons.shopping_cart, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _notifFuture,
@@ -151,19 +136,19 @@ class _NotificationPageState extends State<NotificationPage> {
                 const SizedBox(height: 12),
                 notifList.isEmpty
                     ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: Text(
-                            "Belum ada notifikasi.",
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ),
-                      )
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      "Belum ada notifikasi.",
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ),
+                )
                     : Column(
-                        children: [
-                          _buildNotifCard(notifList.first),
-                        ],
-                      ),
+                  children: [
+                    _buildNotifCard(notifList.first),
+                  ],
+                ),
                 if (notifList.length > 1) ...[
                   const SizedBox(height: 28),
                   const Text("Sebelumnya", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

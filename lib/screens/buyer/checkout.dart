@@ -62,8 +62,6 @@ class CheckoutPage extends StatelessWidget {
     final int shippingCost = 11500;
     final int shippingInsuranceFee = 500;
     final int applicationFee = 1000;
-    final int productDiscount = 20000;
-    final int shippingDiscount = 11500;
 
     // Hitung subtotal_items dari cartData
     int subtotalItems = 0;
@@ -71,13 +69,14 @@ class CheckoutPage extends StatelessWidget {
       subtotalItems += (cart['price_per_item'] as int) * (cart['quantity'] as int);
     }
 
+    // Hitung total sebelum diskon
+    int totalSebelumDiskon = subtotalItems + shippingCost + shippingInsuranceFee + applicationFee;
+
+    // Diskon 5% dari total sebelum diskon
+    int productDiscount = (totalSebelumDiskon * 0.05).round();
+
     // Hitung total_amount sesuai payload API
-    int totalAmount = subtotalItems +
-        shippingCost +
-        shippingInsuranceFee +
-        applicationFee -
-        productDiscount -
-        shippingDiscount;
+    int totalAmount = totalSebelumDiskon - productDiscount;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -104,23 +103,23 @@ class CheckoutPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       child: (product.images.isNotEmpty && product.images.first.startsWith('http'))
                           ? Image.network(
-                              product.images.first,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 80,
-                                height: 80,
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.broken_image),
-                              ),
-                            )
+                        product.images.first,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.broken_image),
+                        ),
+                      )
                           : Container(
-                              width: 80,
-                              height: 80,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.broken_image),
-                            ),
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.broken_image),
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -169,7 +168,6 @@ class CheckoutPage extends StatelessWidget {
                 _row('Asuransi Pengiriman', shippingInsuranceFee),
                 _row('Biaya Aplikasi', applicationFee),
                 _row('Diskon Produk', -productDiscount),
-                _row('Diskon Ongkir', -shippingDiscount),
                 const Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -205,7 +203,6 @@ class CheckoutPage extends StatelessWidget {
                       "shipping_insurance_fee": shippingInsuranceFee,
                       "application_fee": applicationFee,
                       "product_discount": productDiscount,
-                      "shipping_discount": shippingDiscount,
                       "total_amount": totalAmount,
                     });
                     await ApiService().createOrder(
@@ -215,7 +212,7 @@ class CheckoutPage extends StatelessWidget {
                       shippingInsuranceFee: shippingInsuranceFee,
                       applicationFee: applicationFee,
                       productDiscount: productDiscount,
-                      shippingDiscount: shippingDiscount,
+                      shippingDiscount: 0, // Kirim 0 untuk shippingDiscount
                       totalAmount: totalAmount,
                     );
                     // Tambahkan notifikasi ke SharedPreferences
