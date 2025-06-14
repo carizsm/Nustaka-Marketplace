@@ -1,60 +1,41 @@
 import 'package:flutter/material.dart';
-import 'wishlist_page.dart';
-import 'notification_page.dart';
-import 'user_profille.dart';
+import '../../services/api_service.dart';
+import '../../models/order.dart';
 
-class Product {
-  final String title;
-  final String price;
-  final String rating;
-  final String location;
-  final String imagePath;
-  final String category;
-  final String iconPath;
+class TransactionPage extends StatefulWidget {
+  const TransactionPage({Key? key}) : super(key: key);
 
-  const Product({
-    required this.title,
-    required this.price,
-    required this.rating,
-    required this.location,
-    required this.imagePath,
-    required this.category,
-    required this.iconPath,
-  });
+  @override
+  State<TransactionPage> createState() => _TransactionPageState();
 }
 
-class TransactionPage extends StatelessWidget {
-  TransactionPage({Key? key}) : super(key: key);
+class _TransactionPageState extends State<TransactionPage> {
+  final ApiService apiService = ApiService();
+  List<BuyerOrder> orders = [];
+  bool isLoading = true;
+  String? errorMessage;
 
-  final List<Product> transactions = [
-    Product(
-      title: "Sate Madura Haji Nanang",
-      price: "Rp 35.000",
-      rating: "4.8 • 100+ terjual",
-      location: "Madura",
-      imagePath: "assets/images/sate_madura.png",
-      category: "Madura",
-      iconPath: "",
-    ),
-    Product(
-      title: "Mie Kocok",
-      price: "Rp 30.000",
-      rating: "4.7 • 100+ terjual",
-      location: "Bandung, Jawa Barat",
-      imagePath: "assets/images/mie_kocok.png",
-      category: "Jawa Barat",
-      iconPath: "",
-    ),
-    Product(
-      title: "Bakso Malang Jl. Keraton",
-      price: "Rp 18.000",
-      rating: "4.5 • 10rb+ terjual",
-      location: "Jawa Timur",
-      imagePath: "assets/images/bakso_malang.png",
-      category: "Jawa Timur",
-      iconPath: "",
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    fetchOrders();
+  }
+
+  Future<void> fetchOrders() async {
+    try {
+      final data = await apiService.getBuyerOrders();
+      setState(() {
+        orders = data;
+        isLoading = false;
+        errorMessage = null;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = e.toString();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,69 +44,29 @@ class TransactionPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF86A340),
         elevation: 0,
-        title: SizedBox(
-          height: 36,
-          child: TextField(
-            style: const TextStyle(color: Colors.red),
-            decoration: InputDecoration(
-              hintText: 'Cari transaksi...',
-              hintStyle: const TextStyle(color: Colors.red),
-              prefixIcon: const Icon(Icons.search, color: Colors.red),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF86A340)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.red),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationPage()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.shopping_cart, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.person, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const UbahProfilPage()),
-              );
-            },
-          ),
-        ],
+        title: const Text('Transaksi Saya', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: transactions.isEmpty
-                ? const Center(child: Text("Tidak ada transaksi."))
-                : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: transactions.length,
-              itemBuilder: (context, index) {
-                final product = transactions[index];
-                return buildTransactionCard(context, product);
-              },
-            ),
-          ),
-        ],
-      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+              ? Center(
+                  child: Text(
+                    'Gagal memuat transaksi:\n$errorMessage',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                )
+              : orders.isEmpty
+                  ? const Center(child: Text("Tidak ada transaksi.", style: TextStyle(fontSize: 16)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: orders.length,
+                      itemBuilder: (context, index) {
+                        final order = orders[index];
+                        return _TransactionCard(order: order);
+                      },
+                    ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF86A340),
         selectedItemColor: Colors.white,
@@ -135,10 +76,7 @@ class TransactionPage extends StatelessWidget {
           if (index == 0) {
             Navigator.pop(context);
           } else if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WishlistPage()),
-            );
+            Navigator.pushNamed(context, '/wishlist');
           }
         },
         items: const [
@@ -149,63 +87,111 @@ class TransactionPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget buildTransactionCard(BuildContext context, Product product) {
+class _TransactionCard extends StatelessWidget {
+  final BuyerOrder order;
+  const _TransactionCard({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
+      color: Colors.white,
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              product.imagePath,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 60,
-                  height: 60,
-                  color: Colors.red.shade100,
-                  child: const Icon(Icons.broken_image, color: Colors.red),
-                );
-              },
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: order.firstProductImage.isNotEmpty
+                  ? Image.network(
+                      order.firstProductImage,
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 70,
+                        height: 70,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 32),
+                      ),
+                    )
+                  : Container(
+                      width: 70,
+                      height: 70,
+                      color: Colors.grey.shade300,
+                      child: const Icon(Icons.image, color: Colors.grey, size: 32),
+                    ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(product.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(product.location, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 4),
-                  Text('Total Belanja', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  Text(product.price, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    order.firstProductName.isNotEmpty ? order.firstProductName : 'Produk Tidak Diketahui',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF86A340)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(10),
+                          color: order.orderStatus == "pending"
+                              ? Colors.orange
+                              : order.orderStatus == "completed"
+                                  ? Colors.green
+                                  : Colors.grey,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text("Selesai", style: TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text(
+                          order.orderStatus.toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const Spacer(),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF86A340),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          textStyle: const TextStyle(fontSize: 12),
+                      Text(
+                        'Rp ${order.totalAmount}',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
                         ),
-                        child: const Text("Beli Lagi"),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          order.shippingAddress,
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 13, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDate(order.createdAt),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const Spacer(),
                     ],
                   ),
                 ],
@@ -215,5 +201,9 @@ class TransactionPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return "${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
   }
 }

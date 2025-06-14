@@ -31,17 +31,41 @@ class _HomepageState extends State<Homepage> {
 
   List<model.FullyEnrichedProduct> allProducts = [];
 
+  // Tambahkan controller dan state untuk pencarian
+  final TextEditingController searchController = TextEditingController();
+  String searchKeyword = '';
+
   List<model.FullyEnrichedProduct> get filteredProducts {
-    if (selectedCategory == 'Semua') return allProducts;
-    return allProducts
-        .where((p) => p.regionId?.toLowerCase() == selectedCategory.toLowerCase())
-        .toList();
+    List<model.FullyEnrichedProduct> products = allProducts;
+    if (selectedCategory != 'Semua') {
+      products = products
+          .where((p) => p.regionId?.toLowerCase() == selectedCategory.toLowerCase())
+          .toList();
+    }
+    if (searchKeyword.trim().isNotEmpty) {
+      final keyword = searchKeyword.trim().toLowerCase();
+      products = products
+          .where((p) => p.name.toLowerCase().contains(keyword))
+          .toList();
+    }
+    return products;
   }
 
   @override
   void initState() {
     super.initState();
     fetchProducts();
+    searchController.addListener(() {
+      setState(() {
+        searchKeyword = searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchProducts() async {
@@ -65,6 +89,7 @@ class _HomepageState extends State<Homepage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF86A340),
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: Padding(
           padding: const EdgeInsets.only(top: 4.0),
           child: Container(
@@ -74,9 +99,10 @@ class _HomepageState extends State<Homepage> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Color(0xFF86A340), width: 1),
             ),
-            child: const TextField(
-              style: TextStyle(color: Colors.red),
-              decoration: InputDecoration(
+            child: TextField(
+              controller: searchController,
+              style: const TextStyle(color: Colors.red),
+              decoration: const InputDecoration(
                 contentPadding: EdgeInsets.only(bottom: 12),
                 hintText: 'Cari barang...',
                 hintStyle: TextStyle(color: Colors.red),
