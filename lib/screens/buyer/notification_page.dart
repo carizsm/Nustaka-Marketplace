@@ -1,7 +1,90 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../../services/api_service.dart';
+import '../../models/order.dart';
+import 'cart_page.dart';
 
-class NotificationPage extends StatelessWidget {
+class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
+
+  @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  late Future<List<Map<String, dynamic>>> _notifFuture;
+  late Future<Map<String, int>> _orderStatusCountsFuture;
+  late Future<int> _cartItemCountFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifFuture = _fetchNotifications();
+    _orderStatusCountsFuture = _fetchOrderStatusCounts();
+    _cartItemCountFuture = _fetchCartCount();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final notifString = prefs.getString('notifications') ?? '[]';
+      final List<dynamic> notifJson = jsonDecode(notifString);
+      return notifJson
+          .where((e) => e is Map)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, int>> _fetchOrderStatusCounts() async {
+    try {
+      final api = ApiService();
+      final List<BuyerOrder> orders = await api.getMyOrders() as List<BuyerOrder>;
+      int ongoing = 0;
+      int pending = 0;
+      for (final order in orders) {
+        if (order.orderStatus == "pending") {
+          pending++;
+        } else if (order.orderStatus == "processed" ||
+            order.orderStatus == "shipped" ||
+            order.orderStatus == "ongoing" ||
+            order.orderStatus == "accepted" ||
+            order.orderStatus == "delivering") {
+          ongoing++;
+        }
+      }
+      return {
+        'ongoing': ongoing,
+        'pending': pending,
+      };
+    } catch (e) {
+      return {
+        'ongoing': 0,
+        'pending': 0,
+      };
+    }
+  }
+
+  Future<int> _fetchCartCount() async {
+    try {
+      final api = ApiService();
+      final cartItems = await api.getCart();
+      return cartItems.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _notifFuture = _fetchNotifications();
+      _orderStatusCountsFuture = _fetchOrderStatusCounts();
+      _cartItemCountFuture = _fetchCartCount();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +103,11 @@ class NotificationPage extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refresh,
+            tooltip: 'Refresh',
+          ),
+          IconButton(
             icon: const Icon(Icons.shopping_cart, color: Colors.white),
             onPressed: () {},
           ),
@@ -29,21 +117,63 @@ class NotificationPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        children: [
-          _buildTopTabs(),
-          const SizedBox(height: 20),
-          _buildStatusSummary(),
-          const SizedBox(height: 20),
-          const Text("Terbaru", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          _buildRecentNotification(),
-          const SizedBox(height: 28),
-          const Text("Sebelumnya", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          _buildPreviousNotification(),
-        ],
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _notifFuture,
+        builder: (context, snapshot) {
+          final notifList = snapshot.data ?? [];
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              children: [
+                _buildTopTabs(),
+                const SizedBox(height: 20),
+                FutureBuilder<Map<String, int>>(
+                  future: _orderStatusCountsFuture,
+                  builder: (context, snap) {
+                    final ongoing = snap.data?['ongoing'] ?? 0;
+                    final pending = snap.data?['pending'] ?? 0;
+                    return FutureBuilder<int>(
+                      future: _cartItemCountFuture,
+                      builder: (context, cartSnap) {
+                        final cartCount = cartSnap.data ?? 0;
+                        return _buildStatusSummary(
+                          ongoing: ongoing,
+                          pending: pending,
+                          cartCount: cartCount,
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Text("Terbaru", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                notifList.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text(
+                            "Belum ada notifikasi.",
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          _buildNotifCard(notifList.first),
+                        ],
+                      ),
+                if (notifList.length > 1) ...[
+                  const SizedBox(height: 28),
+                  const Text("Sebelumnya", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildNotifCard(notifList[1]),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -81,14 +211,22 @@ class NotificationPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusSummary() {
+  Widget _buildStatusSummary({required int ongoing, required int pending, required int cartCount}) {
     return Row(
       children: [
         Expanded(
           child: _buildStatusCard(
             icon: Icons.shopping_cart_outlined,
+            label: 'Item di Keranjang',
+            count: cartCount.toString(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatusCard(
+            icon: Icons.shopping_cart_checkout,
             label: 'Transaksi Berlangsung',
-            count: '1',
+            count: ongoing.toString(),
           ),
         ),
         const SizedBox(width: 12),
@@ -96,7 +234,7 @@ class NotificationPage extends StatelessWidget {
           child: _buildStatusCard(
             icon: Icons.schedule,
             label: 'Menunggu Pembayaran',
-            count: '0',
+            count: pending.toString(),
           ),
         ),
       ],
@@ -130,13 +268,22 @@ class NotificationPage extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Icon(icon, size: 26, color: Colors.grey[700]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRecentNotification() {
+  Widget _buildNotifCard(Map<String, dynamic> notif) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFDFF0C7),
@@ -150,74 +297,24 @@ class NotificationPage extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Pembayaranmu sudah terverifikasi",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      notif['title'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      "2 Jam",
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                      notif['time'] ?? '',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                   ],
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  "Pembayaranmu sudah kami terima, mohon tunggu konfirmasi selanjutnya.",
-                  style: TextStyle(fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPreviousNotification() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF86A340),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(Icons.receipt_long, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Pengembalian dana berhasil",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      "27 Mar",
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "Dana sebesar Rp329.194 telah dikembalikan ke Saldo Refund pada 27 Maret 2025.",
-                  style: TextStyle(fontSize: 13),
+                  notif['body'] ?? '',
+                  style: const TextStyle(fontSize: 13),
                 ),
               ],
             ),

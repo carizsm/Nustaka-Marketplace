@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../models/product.dart';
+import 'checkout.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -55,8 +56,8 @@ class _CartPageState extends State<CartPage> {
 
   int get totalPrice {
     int total = 0;
-    for (var item in _cartItems) {
-      final cart = item['cart'];
+    for (var i = 0; i < _cartItems.length; i++) {
+      final cart = _cartItems[i]['cart'];
       total += (cart['price_per_item'] as int) * (cart['quantity'] as int);
     }
     return total;
@@ -320,12 +321,24 @@ class _CartPageState extends State<CartPage> {
                           backgroundColor: themeGreen,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: cartItems.isEmpty
+                        onPressed: _cartItems.isEmpty
                             ? null
                             : () {
-                                // TODO: Implementasi checkout
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Checkout coming soon!')),
+                                // Kirim seluruh produk di keranjang ke halaman checkout
+                                final selectedProducts = _cartItems
+                                    .map((item) => item['product'] as FullyEnrichedProduct)
+                                    .toList();
+                                final cartData = _cartItems
+                                    .map((item) => item['cart'] as Map<String, dynamic>)
+                                    .toList();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CheckoutPage(
+                                      products: selectedProducts,
+                                      cartData: cartData,
+                                    ),
+                                  ),
                                 );
                               },
                         child: const Text(

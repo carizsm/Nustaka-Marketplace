@@ -1,13 +1,14 @@
 // services/api_service.dart
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io'; // <-- Ditambahkan untuk File
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 // Impor model Anda
 import '../models/product.dart'; // Sesuaikan path
 import '../models/order.dart';
 import '../models/transaction.dart';
-import '../models/user.dart'; // Ganti ke user.dart
+import '../models/user.dart'; // <-- Ditambahkan untuk model User
 // ... impor model lain
 
 class ApiService {
@@ -335,7 +336,44 @@ class ApiService {
     }
   }
 
+  // CREATE ORDER (Checkout)
+  Future<void> createOrder({
+    required String shippingAddress,
+    required int subtotalItems,
+    required int shippingCost,
+    required int shippingInsuranceFee,
+    required int applicationFee,
+    required int productDiscount,
+    required int shippingDiscount,
+    required int totalAmount,
+  }) async {
+    final url = Uri.parse('$_baseUrl/orders/');
+    final headers = await _getHeaders(includeAuth: true);
+
+    final body = jsonEncode({
+      "shipping_address": shippingAddress,
+      "subtotal_items": subtotalItems,
+      "shipping_cost": shippingCost,
+      "shipping_insurance_fee": shippingInsuranceFee,
+      "application_fee": applicationFee,
+      "product_discount": productDiscount,
+      "shipping_discount": shippingDiscount,
+      "total_amount": totalAmount,
+    });
+
+    final response = await http.post(url, headers: headers, body: body);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Gagal membuat order: ${response.body}');
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // --- FUNGSI BARU YANG DITAMBAHKAN ---
+  // -------------------------------------------------------------------
+
   // Mendapatkan daftar order untuk buyer
+  // Diasumsikan model BuyerOrder ada di dalam file 'order.dart'
   Future<List<BuyerOrder>> getBuyerOrders() async {
     final uri = Uri.parse('$_baseUrl/orders');
     final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
@@ -344,6 +382,7 @@ class ApiService {
       final decoded = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decoded);
       final List<dynamic> list = data['data'];
+      // Pastikan Anda memiliki model BuyerOrder dengan fromJson
       return list.map((e) => BuyerOrder.fromJson(e)).toList();
     } else if (response.statusCode == 404) {
       return [];
@@ -368,12 +407,18 @@ class ApiService {
   // Logout user
   Future<void> logout() async {
     final uri = Uri.parse('$_baseUrl/users/logout');
-    final response = await http.post(uri, headers: await _getHeaders(includeAuth: true));
-    // Hapus token dari SharedPreferences meskipun API error
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('authToken');
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Gagal logout');
+    // Selalu hapus token, bahkan jika API call gagal
+    try {
+      final response = await http.post(uri, headers: await _getHeaders(includeAuth: true));
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        // Tetap logout di client, tapi beri tahu jika ada masalah di server
+        print('Server logout failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error during server logout: $e');
+    } finally {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('authToken');
     }
   }
 
@@ -394,7 +439,7 @@ class ApiService {
     if (email != null) body['email'] = email;
     if (phoneNumber != null) body['phone_number'] = phoneNumber;
     if (gender != null) body['gender'] = gender;
-    if (birthDate != null) body['birth_date'] = birthDate.toIso8601String();
+    if (birthDate != null) body['birth_date'] = birthDate.toIso8601String().split('T')[0]; // Format YYYY-MM-DD
     if (address != null) body['address'] = address;
 
     final response = await http.put(
@@ -407,7 +452,7 @@ class ApiService {
       final data = jsonDecode(decoded);
       return User.fromJson(data);
     } else {
-      throw Exception('Gagal memperbarui profil');
+      throw Exception('Gagal memperbarui profil: ${response.body}');
     }
   }
 
@@ -415,10 +460,15 @@ class ApiService {
   Future<User> updateAvatar(File avatarFile) async {
     final uri = Uri.parse('$_baseUrl/users/me/avatar');
     final request = http.MultipartRequest('PUT', uri);
+
     final token = await _getToken();
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+    } else {
+      throw Exception('Auth token not found for avatar upload');
     }
+
     request.files.add(await http.MultipartFile.fromPath('avatar', avatarFile.path));
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
@@ -426,9 +476,9 @@ class ApiService {
     if (response.statusCode == 200) {
       final decoded = utf8.decode(response.bodyBytes);
       final data = jsonDecode(decoded);
-      return User.fromJson(data);
+      return User.fromJson(data['data']); // Sesuaikan jika response dibungkus 'data'
     } else {
-      throw Exception('Gagal mengunggah foto profil');
+      throw Exception('Gagal mengunggah foto profil: ${response.body}');
     }
   }
 }
