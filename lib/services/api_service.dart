@@ -63,7 +63,7 @@ class ApiService {
     String? categoryId,
     String? regionId,
     int page = 1,
-    int limit = 10
+    int limit = 10,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
@@ -88,17 +88,13 @@ class ApiService {
 
   // Contoh: Mendapatkan Detail Produk
   Future<FullyEnrichedProduct> getProductById(String productId) async {
-    final response = await http.get(
-        Uri.parse('$_baseUrl/products/$productId'),
-        headers: await _getHeaders()
-    );
+    final response = await http.get(Uri.parse('$_baseUrl/products/$productId'), headers: await _getHeaders());
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       return FullyEnrichedProduct.fromJson(jsonDecode(decodedBody) as Map<String, dynamic>);
     } else if (response.statusCode == 404) {
       throw Exception('Product not found (Status: 404)');
-    }
-    else {
+    } else {
       throw Exception('Failed to load product details (Status: ${response.statusCode})');
     }
   }
@@ -167,7 +163,6 @@ class ApiService {
     }
   }
 
-
   // getMyProducts (untuk seller)
   Future<List<FullyEnrichedProduct>> getMyProducts() async {
     final uri = Uri.parse('$_baseUrl/products/my');
@@ -188,7 +183,7 @@ class ApiService {
 
   // getMyOrders (untuk seller)
   Future<List<OrderData>> getMyOrders() async {
-    final uri = Uri.parse('$_baseUrl/orders'); // ✅ endpoint benar
+    final uri = Uri.parse('$_baseUrl/orders');
     final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
 
     if (response.statusCode == 200) {
@@ -205,16 +200,16 @@ class ApiService {
 
   // getmyTransactions (untuk seller)
   Future<List<TransactionData>> getMyTransactions() async {
-    final uri = Uri.parse('$_baseUrl/seller/transactions');
+    final uri = Uri.parse('$_baseUrl/orders/seller/me');
     final response = await http.get(uri, headers: await _getHeaders(includeAuth: true));
 
     if (response.statusCode == 200) {
-      final decoded = utf8.decode(response.bodyBytes);
-      final data = jsonDecode(decoded);
-      final List<dynamic> list = data['data'];
-      return list.map((e) => TransactionData.fromJson(e)).toList();
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decodedBody) as Map<String, dynamic>;
+      final List<dynamic> transactionsJson = data['data'];
+      return transactionsJson.map((e) => TransactionData.fromJson(e)).toList();
     } else {
-      throw Exception('Gagal memuat daftar transaksi');
+      throw Exception('Gagal memuat transaksi. Status: ${response.statusCode}');
     }
   }
 
@@ -224,27 +219,42 @@ class ApiService {
     required String detail,
     required String description,
     required int stock,
-    required String unit,
     required int price,
+    required String categoryId,
+    required String regionId, // <-- tambahkan ini
     required bool visible,
+    List<String>? imageUrls,
+    String status = 'available',
   }) async {
-    final uri = Uri.parse('$_baseUrl/seller/products');
+    final uri = Uri.parse('$_baseUrl/products');
+    final Map<String, dynamic> body = {
+      'name': name,
+      'briefHistory': detail,
+      'description': description,
+      'stock': stock,
+      'category_id': categoryId,
+      'region_id': regionId, // <-- tambahkan ke body
+      'price': price,
+      'status': status,
+      'visible': visible,
+    };
+    if (imageUrls != null && imageUrls.isNotEmpty) {
+      body['images'] = imageUrls;
+    }
+
     final response = await http.post(
       uri,
       headers: await _getHeaders(includeAuth: true),
-      body: jsonEncode({
-        'name': name,
-        'detail': detail,
-        'description': description,
-        'stock': stock,
-        'unit': unit,
-        'price': price,
-        'visible': visible,
-      }),
+      body: jsonEncode(body),
     );
 
-    if (response.statusCode != 201) {
-      throw Exception('Gagal menambahkan produk. Status: ${response.statusCode}');
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      String message = 'Gagal menambahkan produk';
+      try {
+        final decoded = jsonDecode(response.body);
+        message = decoded['message'] ?? message;
+      } catch (_) {}
+      throw Exception('$message. Status: ${response.statusCode}');
     }
   }
 
@@ -314,7 +324,8 @@ class ApiService {
 
       final Map<String, dynamic> responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
-      if (response.statusCode == 201) { // Kode status 201 untuk 'Created'
+      if (response.statusCode == 201) {
+        // Kode status 201 untuk 'Created'
         if (responseBody.containsKey('token')) {
           // Simpan token setelah registrasi berhasil
           final prefs = await SharedPreferences.getInstance();
@@ -367,10 +378,6 @@ class ApiService {
       throw Exception('Gagal membuat order: ${response.body}');
     }
   }
-
-  // -------------------------------------------------------------------
-  // --- FUNGSI BARU YANG DITAMBAHKAN ---
-  // -------------------------------------------------------------------
 
   // Mendapatkan daftar order untuk buyer
   // Diasumsikan model BuyerOrder ada di dalam file 'order.dart'

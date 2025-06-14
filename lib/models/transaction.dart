@@ -1,31 +1,31 @@
 class TransactionData {
-  final String invoice;
-  final String customerName;
-  final String productName;
-  final String quantity;
-  final String shippingMethod;
-  final String address;
-  final String arrivalTime;
+  final String id;
+  final String orderStatus;
+  final String shippingAddress;
+  final int totalAmount;
+  final DateTime createdAt;
 
   TransactionData({
-    required this.invoice,
-    required this.customerName,
-    required this.productName,
-    required this.quantity,
-    required this.shippingMethod,
-    required this.address,
-    required this.arrivalTime,
+    required this.id,
+    required this.orderStatus,
+    required this.shippingAddress,
+    required this.totalAmount,
+    required this.createdAt,
   });
 
   factory TransactionData.fromJson(Map<String, dynamic> json) {
+    final createdAt = json['created_at'];
+    DateTime parsedDate = DateTime.now();
+    if (createdAt is Map && createdAt.containsKey('_seconds')) {
+      parsedDate = DateTime.fromMillisecondsSinceEpoch(createdAt['_seconds'] * 1000);
+    }
+
     return TransactionData(
-      invoice: json['invoice'],
-      customerName: json['customer_name'],
-      productName: json['product_name'],
-      quantity: json['quantity'],
-      shippingMethod: json['shipping_method'],
-      address: json['address'],
-      arrivalTime: json['arrival_time'],
+      id: json['id'] ?? '',
+      orderStatus: json['order_status'] ?? '',
+      shippingAddress: json['shipping_address'] ?? '',
+      totalAmount: json['total_amount'] ?? 0,
+      createdAt: parsedDate,
     );
   }
 }

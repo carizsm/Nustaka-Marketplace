@@ -39,7 +39,6 @@ class _SellerHomepageState extends State<SellerHomepage> {
           style: TextStyle(color: Colors.white),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.search, color: Colors.white), onPressed: () {}),
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.white),
             onPressed: () {

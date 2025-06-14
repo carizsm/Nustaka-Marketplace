@@ -15,9 +15,21 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
   String _selectedSatuan = 'Pcs';
   String _selectedCurrency = 'Rp';
 
+  // Dropdown wilayah
+  final List<String> _availableRegions = [
+    'Jawa Barat',
+    'Jawa Tengah',
+    'Jawa Timur',
+    'DKI Jakarta',
+    'Bali',
+    'Sumatera Utara',
+  ];
+  String _selectedRegion = 'Jawa Barat';
+
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _detailController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();
+  final TextEditingController _jenisProdukController = TextEditingController();
   final TextEditingController _stokController = TextEditingController();
   final TextEditingController _hargaController = TextEditingController();
 
@@ -55,20 +67,15 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Yuk, isi informasi produkmu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Yuk, isi informasi produkmu',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             SizedBox(height: 16),
 
             _buildLabel('Nama Produk'),
-            TextField(
-              controller: _namaController,
-              decoration: InputDecoration(
-                hintText: 'Ketikkan nama produk kamu disini',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            _textField(_namaController, 'Ketikkan nama produk kamu disini'),
             SizedBox(height: 16),
 
-            _buildLabel('Foto Produk'),
+            _buildLabel('Foto Produk (opsional)'),
             Container(
               height: 150,
               decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
@@ -77,23 +84,27 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
             SizedBox(height: 16),
 
             _buildLabel('Detail Produk'),
-            TextField(
-              controller: _detailController,
-              decoration: InputDecoration(
-                hintText: 'Ketikkan detail produk kamu disini',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            _textField(_detailController, 'Detail singkat produk', maxLines: 2),
             SizedBox(height: 16),
 
             _buildLabel('Deskripsi Produk'),
-            TextField(
-              controller: _deskripsiController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Ketikkan deskripsi produk kamu disini',
-                border: OutlineInputBorder(),
-              ),
+            _textField(_deskripsiController, 'Deskripsi lengkap produk', maxLines: 4),
+            SizedBox(height: 16),
+
+            _buildLabel('Jenis Produk'),
+            _textField(_jenisProdukController, 'Misal: Makanan, Minuman'),
+            SizedBox(height: 16),
+
+            _buildLabel('Wilayah Produk'),
+            DropdownButtonFormField<String>(
+              value: _selectedRegion,
+              decoration: InputDecoration(border: OutlineInputBorder()),
+              items: _availableRegions.map((region) {
+                return DropdownMenuItem(value: region, child: Text(region));
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _selectedRegion = value);
+              },
             ),
             SizedBox(height: 16),
 
@@ -102,20 +113,13 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
               children: [
                 DropdownButton<String>(
                   value: _selectedSatuan,
-                  items: ['Pcs', 'Kg', 'Ltr'].map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+                  items: ['Pcs', 'Kg', 'Ltr']
+                      .map((val) => DropdownMenuItem(value: val, child: Text(val)))
+                      .toList(),
                   onChanged: (value) => setState(() => _selectedSatuan = value!),
                 ),
                 SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _stokController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Masukkan jumlah stok produk kamu disini',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
+                Expanded(child: _textField(_stokController, 'Jumlah stok', type: TextInputType.number)),
               ],
             ),
             SizedBox(height: 16),
@@ -125,8 +129,10 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
               children: [
                 DropdownButton<String>(
                   value: _selectedCurrency,
-                  items: ['Rp', '\$'].map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
-                  onChanged: (value) => setState(() => _selectedCurrency = value!),
+                  items: ['Rp', '\$']
+                      .map((val) => DropdownMenuItem(value: val, child: Text(val)))
+                      .toList(),
+                  onChanged: (val) => setState(() => _selectedCurrency = val!),
                 ),
                 SizedBox(width: 8),
                 Expanded(
@@ -134,10 +140,10 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                     controller: _hargaController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      hintText: 'Atur harga produkmu disini',
+                      hintText: 'Harga produk',
                       border: OutlineInputBorder(),
                     ),
-                    onChanged: (text) => setState(() {}),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 SizedBox(width: 8),
@@ -157,39 +163,17 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
               ],
             ),
             SizedBox(height: 8),
-            Text('Kisaran harga kompetitif : Rp 11.500 - 13.500', style: TextStyle(color: Colors.grey[600])),
+            Text('Kisaran harga kompetitif : Rp 11.500 - 13.500',
+                style: TextStyle(color: Colors.grey[600])),
             SizedBox(height: 16),
 
             _buildLabel('Visibilitas Produk'),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Visibilitas Produk', style: TextStyle(fontWeight: FontWeight.bold)),
-                        SizedBox(height: 4),
-                        Text(
-                          'Jika aktif, produkmu dapat dicari oleh calon pembeli.',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: _visibilityActive,
-                    onChanged: (value) => setState(() => _visibilityActive = value),
-                    activeColor: primaryGreen,
-                  ),
-                ],
-              ),
+            SwitchListTile(
+              title: Text('Aktifkan Visibilitas Produk'),
+              subtitle: Text('Jika aktif, produkmu dapat dicari oleh calon pembeli.'),
+              value: _visibilityActive,
+              activeColor: primaryGreen,
+              onChanged: (val) => setState(() => _visibilityActive = val),
             ),
             SizedBox(height: 24),
 
@@ -204,7 +188,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                 ),
                 onPressed: _isLoading ? null : _uploadProduk,
                 child: _isLoading
-                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: secondaryYellow, strokeWidth: 2))
+                    ? CircularProgressIndicator(color: secondaryYellow)
                     : Text('Upload Produk'),
               ),
             ),
@@ -222,28 +206,64 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         ],
       );
 
+  Widget _textField(TextEditingController controller, String hint,
+      {int maxLines = 1, TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      keyboardType: type,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hint,
+        border: OutlineInputBorder(),
+      ),
+    );
+  }
+
   Future<void> _uploadProduk() async {
     setState(() => _isLoading = true);
+
     try {
+      if (_namaController.text.isEmpty ||
+          _detailController.text.isEmpty ||
+          _deskripsiController.text.isEmpty ||
+          _jenisProdukController.text.isEmpty ||
+          _stokController.text.isEmpty ||
+          _hargaController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Harap lengkapi semua data wajib')),
+        );
+        return;
+      }
+
+      final int stock = int.tryParse(_stokController.text.trim()) ?? 0;
+      final int price =
+          int.tryParse(_hargaController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
       await ApiService().createProduct(
-        name: _namaController.text,
-        detail: _detailController.text,
-        description: _deskripsiController.text,
-        stock: int.tryParse(_stokController.text) ?? 0,
-        unit: _selectedSatuan,
-        price: int.tryParse(_hargaController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
+        name: _namaController.text.trim(),
+        detail: _detailController.text.trim(),
+        description: _deskripsiController.text.trim(),
+        stock: stock,
+        price: price,
         visible: _visibilityActive,
+        categoryId: _jenisProdukController.text.trim(),
+        regionId: _selectedRegion,
+        imageUrls: [],
+        status: "available",
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Produk berhasil diunggah!')));
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Produk berhasil diunggah!')),
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => SellerHomepage()),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal unggah: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal unggah: $e')),
+      );
     } finally {
       setState(() => _isLoading = false);
     }

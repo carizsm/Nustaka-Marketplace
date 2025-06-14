@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart'; // Path ke AuthProvider Anda
 import 'screens/splashscreen.dart';   // Path ke SplashScreen Anda
+import 'package:intl/intl.dart'; // Untuk format tanggal
+import 'package:intl/date_symbol_data_local.dart'; // Untuk inisialisasi locale
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null);
+  Intl.defaultLocale = 'id_ID';
   runApp(const MyApp());
 }
 
