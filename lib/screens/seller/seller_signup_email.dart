@@ -1,10 +1,58 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
+import 'seller_homepage.dart';
 import 'seller_signup_phone.dart';
-import 'seller_after_signup.dart';
 
-
-class SellerSignupEmailPage extends StatelessWidget {
+class SellerSignupEmailPage extends StatefulWidget {
   const SellerSignupEmailPage({super.key});
+
+  @override
+  State<SellerSignupEmailPage> createState() => _SellerSignupEmailPageState();
+}
+
+class _SellerSignupEmailPageState extends State<SellerSignupEmailPage> {
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  Future<void> _registerSeller() async {
+    setState(() => _isLoading = true);
+    try {
+      final username = _usernameController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      if (username.isEmpty || email.isEmpty || password.isEmpty) {
+        throw Exception('Semua kolom harus diisi.');
+      }
+
+      await ApiService().register(
+        username: username,
+        email: email,
+        password: password,
+        role: 'seller', // ✅ Role seller default
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pendaftaran berhasil!')),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const SellerHomepage()),
+        (route) => false,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal daftar: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +84,25 @@ class SellerSignupEmailPage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
+            // Username
+            TextField(
+              controller: _usernameController,
+              decoration: InputDecoration(
+                hintText: 'Username',
+                prefixIcon: const Icon(Icons.person),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
             // Email
             TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 hintText: 'E-mail',
                 prefixIcon: const Icon(Icons.email),
@@ -45,7 +110,6 @@ class SellerSignupEmailPage extends StatelessWidget {
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black),
                 ),
               ),
             ),
@@ -53,6 +117,7 @@ class SellerSignupEmailPage extends StatelessWidget {
 
             // Password
             TextField(
+              controller: _passwordController,
               obscureText: true,
               decoration: InputDecoration(
                 hintText: 'Password',
@@ -61,7 +126,6 @@ class SellerSignupEmailPage extends StatelessWidget {
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black),
                 ),
               ),
             ),
@@ -69,12 +133,7 @@ class SellerSignupEmailPage extends StatelessWidget {
 
             // Tombol daftar
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SellerAfterSignupPage()),
-                );
-              },
+              onPressed: _isLoading ? null : _registerSeller,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD9A25F),
                 minimumSize: const Size(double.infinity, 50),
@@ -82,12 +141,13 @@ class SellerSignupEmailPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                "Daftar",
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      "Daftar",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
             ),
-
 
             const SizedBox(height: 24),
             const Center(
@@ -100,11 +160,10 @@ class SellerSignupEmailPage extends StatelessWidget {
 
             // Google
             ElevatedButton.icon(
-              onPressed: () {},
-              icon: Image.asset(
-                'assets/icons/google.png', 
-                height: 24,
-              ),
+              onPressed: () {
+                // TODO: Integrasi Google Sign In
+              },
+              icon: Image.asset('assets/icons/google.png', height: 24),
               label: const Text("Google"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF86A340),
@@ -164,9 +223,7 @@ class SellerSignupEmailPage extends StatelessWidget {
             // Sudah punya akun
             Center(
               child: GestureDetector(
-                onTap: () {
-                  Navigator.pop(context); 
-                },
+                onTap: () => Navigator.pop(context),
                 child: const Text.rich(
                   TextSpan(
                     text: "Sudah punya akun? ",

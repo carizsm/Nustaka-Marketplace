@@ -1,73 +1,132 @@
-
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
+import '../../models/product.dart';
+import '../../models/transactiondata.dart';
 
-class SellerStatistikToko extends StatelessWidget {
+class SellerStatistikToko extends StatefulWidget {
+  const SellerStatistikToko({super.key});
+
+  @override
+  State<SellerStatistikToko> createState() => _SellerStatistikTokoState();
+}
+
+class _SellerStatistikTokoState extends State<SellerStatistikToko> {
+  bool _isLoading = true;
+
+  double totalPendapatanKotor = 0;
+  double totalPendapatanBersih = 0;
+  int totalProdukDipesan = 0;
+  double avgRating = 0.0;
+  int totalUlasan = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatistik();
+  }
+
+  Future<void> _loadStatistik() async {
+    try {
+      final transaksi = await ApiService().getMyTransactions();
+      final produk = await ApiService().getMyProducts();
+
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 6));
+
+      for (var t in transaksi) {
+        final tanggal = t.createdAt ?? DateTime.now();
+        if (tanggal.isAfter(start.subtract(const Duration(days: 1)))) {
+          totalPendapatanKotor += t.totalAmount;
+          if (t.status.toLowerCase() == 'completed') {
+            totalPendapatanBersih += t.totalAmount;
+          }
+        }
+      }
+
+      totalProdukDipesan = transaksi.length;
+
+      final reviews = produk.map((p) => p.reviewSummary).whereType<ReviewSummary>();
+      double totalRating = 0;
+      for (var r in reviews) {
+        totalRating += (r.averageRating ?? 0.0) * r.reviewCount;
+        totalUlasan += r.reviewCount;
+      }
+
+      avgRating = totalUlasan > 0 ? totalRating / totalUlasan : 0;
+
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Statistik Toko'),
-        backgroundColor: Color(0xFF9ACD32), // Hijau terang
+        title: const Text('Statistik Toko'),
+        backgroundColor: const Color(0xFF9ACD32),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Rutin pantau perkembangan toko untuk tingkatkan penjualanmu.",
-              style: TextStyle(fontSize: 14),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Rutin pantau perkembangan toko untuk tingkatkan penjualanmu.",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(_buildDateRange(),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _buildStatCard("Rp ${totalPendapatanKotor.toStringAsFixed(0)}", "+3%", "Pendapatan Kotor"),
+                      _buildStatCard("—", "", "Produk Dilihat"),
+                      _buildStatCard("$totalProdukDipesan", "+2,3%", "Produk Dipesan"),
+                      _buildStatCard("—", "", "Komplain"),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _buildRatingSection(),
+                  const SizedBox(height: 24),
+                  const Text("Jumlah Pendapatan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text("Cek pemasukan dari transaksi selesai di tokomu."),
+                  const SizedBox(height: 12),
+                  Text("Rp ${totalPendapatanBersih.toStringAsFixed(0)}",
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+                ],
+              ),
             ),
-            SizedBox(height: 4),
-            Text("7 hari terakhir (06 Jan - 12 Jan)",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                _buildStatCard("Rp 2.350.000", "+3%", "Pendapatan kotor"),
-                _buildStatCard("34", "+1,4%", "Produk Dilihat"),
-                _buildStatCard("47", "+2,3%", "Produk Dipesan"),
-                _buildStatCard("0", "", "Komplain"),
-              ],
-            ),
-            SizedBox(height: 24),
-            _buildRatingSection(),
-            SizedBox(height: 24),
-            Text("Jumlah Pendapatan",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            Text("Cek pemasukan dari transaksi selesai di tokomu."),
-            SizedBox(height: 16),
-            _buildIncomeGraph()
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildStatCard(String value, String change, String label) {
     return Container(
       width: 160,
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
-          SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+          const SizedBox(height: 4),
           if (change.isNotEmpty)
-            Text(change, style: TextStyle(fontSize: 12, color: Colors.green)),
-          SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12)),
+            Text(change, style: const TextStyle(fontSize: 12, color: Colors.green)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -75,7 +134,7 @@ class SellerStatistikToko extends StatelessWidget {
 
   Widget _buildRatingSection() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(12),
@@ -83,72 +142,33 @@ class SellerStatistikToko extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Rating & Ulasan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          SizedBox(height: 8),
+          const Text("Rating & Ulasan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.star, color: Colors.amber, size: 32),
-              SizedBox(width: 8),
-              Text("4.6 / 5.0", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Icon(Icons.star, color: Colors.amber, size: 32),
+              const SizedBox(width: 8),
+              Text("${avgRating.toStringAsFixed(1)} / 5.0",
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ],
           ),
-          Text("90% pembeli merasa puas"),
-          Text("7438 rating • 5233 ulasan"),
-          SizedBox(height: 12),
-          _buildRatingBar(5, 5155),
-          _buildRatingBar(4, 1582),
-          _buildRatingBar(3, 503),
-          _buildRatingBar(2, 103),
-          _buildRatingBar(1, 95),
+          Text("$totalUlasan ulasan"),
         ],
       ),
     );
   }
 
-  Widget _buildRatingBar(int star, int count) {
-    return Row(
-      children: [
-        Icon(Icons.star, color: Colors.amber, size: 16),
-        SizedBox(width: 4),
-        Text("$star"),
-        SizedBox(width: 4),
-        Expanded(
-          child: LinearProgressIndicator(
-            value: count / 5155,
-            backgroundColor: Colors.grey.shade200,
-            color: Colors.lightGreen,
-          ),
-        ),
-        SizedBox(width: 4),
-        Text("($count)")
-      ],
-    );
+  String _buildDateRange() {
+    final now = DateTime.now();
+    final end = now;
+    final start = now.subtract(const Duration(days: 6));
+    String format(DateTime d) =>
+        "${d.day.toString().padLeft(2, '0')} ${_monthName(d.month)}";
+    return "7 hari terakhir (${format(start)} - ${format(end)})";
   }
 
-  Widget _buildIncomeGraph() {
-    return Container(
-      height: 180,
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Total Pendapatan", style: TextStyle(fontWeight: FontWeight.bold)),
-          Row(
-            children: [
-              Text("Rp 576.000", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              SizedBox(width: 8),
-              Text("▼ -25%", style: TextStyle(color: Colors.red)),
-            ],
-          ),
-          Expanded(
-            child: Center(child: Text("📈 Grafik dummy (bisa diganti chart lib)")),
-          ),
-        ],
-      ),
-    );
+  String _monthName(int month) {
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return months[month];
   }
 }

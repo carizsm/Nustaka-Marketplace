@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'seller_homepage.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+
 
 final Color primaryGreen = Color(0xFF86A340);
 final Color secondaryYellow = Color(0xFFECF284);
@@ -14,6 +17,9 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
   bool _visibilityActive = true;
   String _selectedSatuan = 'Pcs';
   String _selectedCurrency = 'Rp';
+  File? _selectedImage;
+  
+
 
   // Dropdown wilayah
   final List<String> _availableRegions = [
@@ -27,6 +33,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
   String _selectedRegion = 'Jawa Barat';
 
   final TextEditingController _namaController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
   final TextEditingController _detailController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();
   final TextEditingController _jenisProdukController = TextEditingController();
@@ -75,13 +82,38 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
             _textField(_namaController, 'Ketikkan nama produk kamu disini'),
             SizedBox(height: 16),
 
-            _buildLabel('Foto Produk (opsional)'),
-            Container(
-              height: 150,
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-              child: Center(child: Icon(Icons.add_a_photo, size: 50, color: Colors.grey)),
+            _buildLabel('Foto Produk (wajib)'),
+            GestureDetector(
+              onTap: () async {
+                final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+                if (pickedFile != null) {
+                  setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+                }
+              },
+              child: Container(
+                height: 150,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                ),
+                child: _selectedImage != null
+                    ? Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity)
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text("Tap untuk pilih foto dari galeri", style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+              ),
             ),
             SizedBox(height: 16),
+
+
 
             _buildLabel('Detail Produk'),
             _textField(_detailController, 'Detail singkat produk', maxLines: 2),
@@ -239,7 +271,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
       final int price =
           int.tryParse(_hargaController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
-      await ApiService().createProduct(
+      await ApiService().uploadProductWithImage(
         name: _namaController.text.trim(),
         detail: _detailController.text.trim(),
         description: _deskripsiController.text.trim(),
@@ -248,9 +280,16 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         visible: _visibilityActive,
         categoryId: _jenisProdukController.text.trim(),
         regionId: _selectedRegion,
-        imageUrls: [],
-        status: "available",
+        imageFile: _selectedImage!,
       );
+
+      if (_selectedImage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Harap pilih gambar produk')),
+        );
+        return;
+      }
+
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

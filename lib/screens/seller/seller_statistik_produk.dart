@@ -54,11 +54,18 @@ class SellerStatistikProduk extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
+              child: Image.network(
                 gambar,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: Colors.grey.shade300,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -119,7 +126,7 @@ class SellerStatistikProduk extends StatelessWidget {
           const Text("Ringkasan Statistik Produk",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text("7 hari terakhir (06 Jan - 12 Jan)"),
+          Text(_buildDateRange()), // ✅ Dinamis
           const SizedBox(height: 16),
           Wrap(
             spacing: 16,
@@ -213,5 +220,24 @@ class SellerStatistikProduk extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // 🔁 Menampilkan tanggal 7 hari terakhir secara dinamis
+  String _buildDateRange() {
+    final now = DateTime.now();
+    final end = now;
+    final start = now.subtract(const Duration(days: 6));
+    final format = (DateTime d) =>
+        "${d.day.toString().padLeft(2, '0')} ${_monthName(d.month)}";
+    return "7 hari terakhir (${format(start)} - ${format(end)})";
+  }
+
+  String _monthName(int month) {
+    const months = [
+      '',
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    return months[month];
   }
 }

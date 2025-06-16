@@ -28,4 +28,6 @@ class TransactionData {
       createdAt: parsedDate,
     );
   }
+
+  get status => null;
 }
